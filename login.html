@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motoflash — Login</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+    body { background: linear-gradient(135deg, #111 0%, #333 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: white; border-radius: 12px; padding: 30px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    h1 { text-align: center; color: #e63946; margin-bottom: 8px; }
+    .sub { text-align: center; color: #666; margin-bottom: 25px; }
+    input { width: 100%; padding: 14px; margin-bottom: 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+    input:focus { outline: none; border-color: #e63946; }
+    button { width: 100%; padding: 14px; background: #e63946; color: white; border: none; border-radius: 8px; font-size: 17px; font-weight: bold; cursor: pointer; }
+    .toggle { text-align: center; margin-top: 20px; color: #555; font-size: 15px; }
+    .toggle a { color: #e63946; cursor: pointer; text-decoration: none; font-weight: bold; }
+    .erro { color: red; text-align: center; margin-top: 12px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🏍️ Motoflash</h1>
+    <p class="sub">Entre com sua conta</p>
+    
+    <div id="formLogin">
+      <input type="email" id="email" placeholder="Seu e-mail">
+      <input type="password" id="senha" placeholder="Sua senha">
+      <button onclick="fazerLogin()">Entrar</button>
+      <div class="toggle">Não tem conta? <a onclick="mostrarCadastro()">Cadastre-se</a></div>
+    </div>
+
+    <div id="formCadastro" style="display:none;">
+      <input type="text" id="nomeCompleto" placeholder="Seu nome completo">
+      <input type="email" id="emailCad" placeholder="Seu e-mail">
+      <input type="password" id="senhaCad" placeholder="Senha (mínimo 6 dígitos)">
+      <select id="tipoUsuario" style="width:100%;padding:14px;margin-bottom:15px;border:2px solid #ddd;border-radius:8px;font-size:16px;">
+        <option value="">Selecione seu perfil</option>
+        <option value="dono">👑 Dono do Sistema</option>
+        <option value="restaurante">🍽️ Restaurante</option>
+        <option value="motoboy">🏍️ Motoboy</option>
+      </select>
+      <button onclick="fazerCadastro()">Criar Conta</button>
+      <div class="toggle">Já tem conta? <a onclick="mostrarLogin()">Entrar</a></div>
+    </div>
+
+    <div class="erro" id="mensagemErro"></div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase-init.js';
+    import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { setDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    window.mostrarCadastro = function() {
+      document.getElementById('formLogin').style.display = 'none';
+      document.getElementById('formCadastro').style.display = 'block';
+    };
+    window.mostrarLogin = function() {
+      document.getElementById('formCadastro').style.display = 'none';
+      document.getElementById('formLogin').style.display = 'block';
+    };
+    function mostrarErro(texto) {
+      const el = document.getElementById('mensagemErro');
+      el.textContent = texto;
+      el.style.display = 'block';
+    }
+
+    window.fazerLogin = async function() {
+      const email = document.getElementById('email').value;
+      const senha = document.getElementById('senha').value;
+      if (!email || !senha) return mostrarErro('Preencha todos os campos');
+      try {
+        await signInWithEmailAndPassword(auth, email, senha);
+        window.location.href = 'painel.html';
+      } catch (e) {
+        mostrarErro('E-mail ou senha incorretos');
+      }
+    };
+
+    window.fazerCadastro = async function() {
+      const nome = document.getElementById('nomeCompleto').value;
+      const email = document.getElementById('emailCad').value;
+      const senha = document.getElementById('senhaCad').value;
+      const tipo = document.getElementById('tipoUsuario').value;
+      if (!nome || !email || !senha || !tipo) return mostrarErro('Preencha todos os campos');
+      if (senha.length < 6) return mostrarErro('Senha precisa ter pelo menos 6 caracteres');
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, senha);
+        await setDoc(doc(db, "usuarios", cred.user.uid), {
+          nome: nome,
+          email: email,
+          tipo: tipo,
+          ativo: tipo !== 'restaurante',
+          dataCadastro: new Date()
+        });
+        alert('Conta criada! Faça login.');
+        mostrarLogin();
+      } catch (e) {
+        mostrarErro('Erro: ' + e.message);
+      }
+    };
+  </script>
+</body>
+</html>
