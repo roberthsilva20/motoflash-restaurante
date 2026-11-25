@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motoflash — Painel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+    body { background: #f4f4f4; }
+    header { background: #111; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .btn-sair { background: #e63946; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+    .card { background: white; border-radius: 10px; padding: 25px; margin-bottom: 20px; }
+    .aviso-bloqueado { background: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>🏍️ Motoflash</h2>
+    <div>
+      <span id="nomeUsuario"></span>
+      <button class="btn-sair" onclick="sair()">Sair</button>
+    </div>
+  </header>
+
+  <div class="container" id="conteudoPagina"></div>
+
+  <script type="module">
+    import { auth, db } from './firebase-init.js';
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      
+      const snap = await getDoc(doc(db, "usuarios", user.uid));
+      const dados = snap.data();
+      document.getElementById('nomeUsuario').textContent = dados.nome;
+      const conteudo = document.getElementById('conteudoPagina');
+
+      if (!dados.ativo) {
+        conteudo.innerHTML = `
+          <div class="aviso-bloqueado">
+            <strong>⚠️ Conta pendente</strong>
+            <p>Sua conta ainda não foi liberada. Aguarde a confirmação.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (dados.tipo === 'dono') {
+        conteudo.innerHTML = `<div class="card"><h2>👑 Painel do Administrador</h2><p>Bem-vindo ao sistema Motoflash!</p></div>`;
+      } else if (dados.tipo === 'restaurante') {
+        conteudo.innerHTML = `<div class="card"><h2>🍽️ Painel do Restaurante</h2><p>Aqui você acompanha seus pedidos em tempo real!</p></div>`;
+      } else if (dados.tipo === 'motoboy') {
+        conteudo.innerHTML = `<div class="card"><h2>🏍️ Painel do Motoboy</h2><p>Veja os pedidos disponíveis perto de você!</p></div>`;
+      }
+    });
+
+    window.sair = function() {
+      signOut(auth).then(() => window.location.href = 'login.html');
+    };
+  </script>
+</body>
+</html>
