@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Área do Restaurante - Motoflash</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    body { background: #f4f4f4; color: #222; padding: 20px; }
+    header { background: #16a34a; color: white; padding: 18px 20px; border-radius: 10px; margin-bottom: 20px; }
+    h1 { font-size: 22px; }
+    .card { background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    button { background: #16a34a; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; margin: 5px; font-weight: bold; width: 100%; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    button.secundario { background: #666; }
+    button.pagamento { background: #f59e0b; }
+    input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; }
+    .status { padding: 8px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; display: inline-block; margin: 5px 0; }
+    .status.aberto { background: #dbeafe; color: #1e40af; }
+    .status.aguardando { background: #fef3c7; color: #92400e; }
+    .status.pago { background: #dcfce7; color: #166534; }
+    .status.andamento { background: #e0e7ff; color: #3730a3; }
+    .status.concluido { background: #d1fae5; color: #065f46; }
+    .status.cancelado { background: #fee2e2; color: #991b1b; }
+    .aviso { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 8px; margin: 15px 0; }
+    .pedido { border-left: 4px solid #16a34a; padding: 15px; margin: 10px 0; background: #f9fafb; border-radius: 0 8px 8px 0; }
+    .assinatura { background: #fef3c7; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+    .assinatura.ativa { background: #dcfce7; }
+    .oculto { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏪 Área do Restaurante</h1>
+  <p style="opacity:0.9; font-size:14px;">Motoflash — Sistema de Entregas</p>
+</header>
+
+<!-- AVISO DE ASSINATURA -->
+<div id="avisoAssinatura" class="assinatura">
+  <h3>📋 Status da sua conta</h3>
+  <p id="textoAssinatura">⚠️ Seu período de teste termina em breve. Entre em contato com o administrador para continuar usando o serviço.</p>
+</div>
+
+<!-- FORMULÁRIO DE NOVO PEDIDO -->
+<div id="formNovoPedido" class="card">
+  <h3>📦 Solicitar Entrega</h3>
+  <input type="text" id="nomeRestaurante" placeholder="Seu nome / Nome do restaurante">
+  <input type="text" id="enderecoColeta" placeholder="Endereço de coleta">
+  <input type="text" id="enderecoEntrega" placeholder="Endereço de entrega">
+  <input type="text" id="nomeDestinatario" placeholder="Nome de quem vai receber">
+  <input type="tel" id="telefoneDestinatario" placeholder="WhatsApp / Telefone">
+  <textarea id="observacoes" placeholder="Observações (referências, horário, etc.)" rows="3"></textarea>
+  
+  <div style="background:#f0fdf4; padding:12px; border-radius:8px; margin:15px 0;">
+    <p><strong>💰 Valor da entrega: R$ 10,00</strong></p>
+    <p style="font-size:14px; color:#666;">Pagamento via Pix antes de enviar o pedido</p>
+  </div>
+  
+  <button onclick="mostrarPagamento()">📤 Continuar para Pagamento</button>
+</div>
+
+<!-- ÁREA DE PAGAMENTO (inicialmente oculta) -->
+<div id="areaPagamento" class="card oculto">
+  <h3>💳 Pagamento via Pix</h3>
+  <p>Valor: <strong style="font-size:22px; color:#16a34a;">R$ 10,00</strong></p>
+  <div style="background:#f4f4f4; padding:15px; border-radius:8px; text-align:center; margin:15px 0;">
+    <p style="font-size:13px; color:#666;">Chave Pix</p>
+    <p style="font-weight:bold; font-size:16px;">(aqui vai a chave do dono)</p>
+    <p style="font-size:12px; color:#999;">Copie e cole no app do seu banco</p>
+  </div>
+  <p style="font-size:14px; color:#666; margin-bottom:15px;">⚠️ Após pagar, clique em "Paguei" e aguarde a confirmação. Assim que confirmado, o pedido será enviado para os motoboys.</p>
+  <button class="pagamento" onclick="enviarPedido()">✅ Paguei — Enviar Pedido</button>
+  <button class="secundario" onclick="voltarFormulario()">Voltar</button>
+</div>
+
+<!-- LISTA DE PEDIDOS -->
+<div class="card">
+  <h3>📋 Meus Pedidos</h3>
+  <div id="listaPedidos"></div>
+</div>
+
+<script>
+let pedidos = JSON.parse(localStorage.getItem('pedidos')) || [];
+let restauranteNome = localStorage.getItem('restauranteNome') || '';
+
+// Salva nome do restaurante
+document.getElementById('nomeRestaurante').value = restauranteNome;
+
+function mostrarPagamento() {
+  const enderecoEntrega = document.getElementById('enderecoEntrega').value;
+  const nomeDestinatario = document.getElementById('nomeDestinatario').value;
+  
+  if(!enderecoEntrega || !nomeDestinatario) {
+    alert('Por favor, preencha o endereço de entrega e o nome do destinatário!');
+    return;
+  }
+  
+  restauranteNome = document.getElementById('nomeRestaurante').value || 'Restaurante sem nome';
+  localStorage.setItem('restauranteNome', restauranteNome);
+  
+  document.getElementById('formNovoPedido').classList.add('oculto');
+  document.getElementById('areaPagamento').classList.remove('oculto');
+}
+
+function voltarFormulario() {
+  document.getElementById('formNovoPedido').classList.remove('oculto');
+  document.getElementById('areaPagamento').classList.add('oculto');
+}
+
+function enviarPedido() {
+  const enderecoColeta = document.getElementById('enderecoColeta').value;
+  const enderecoEntrega = document.getElementById('enderecoEntrega').value;
+  const nomeDestinatario = document.getElementById('nomeDestinatario').value;
+  const telefoneDestinatario = document.getElementById('telefoneDestinatario').value;
+  const observacoes = document.getElementById('observacoes').value;
+  
+  if(!confirm('Confirma que já fez o pagamento via Pix?\n\nO pedido será enviado e o administrador confirmará em instantes.')) {
+    return;
+  }
+  
+  const novoPedido = {
+    id: Date.now(),
+    restaurante: restauranteNome,
+    enderecoColeta,
+    enderecoEntrega,
+    nomeDestinatario,
+    telefoneDestinatario,
+    observacoes,
+    valor: 10.00,
+    data: new Date().toLocaleString('pt-BR'),
+    status: 'aguardando-pagamento',
+    motoboy: null
+  };
+  
+  pedidos.unshift(novoPedido);
+  localStorage.setItem('pedidos', JSON.stringify(pedidos));
+  
+  // Limpa formulário
+  document.getElementById('enderecoColeta').value = '';
+  document.getElementById('enderecoEntrega').value = '';
+  document.getElementById('nomeDestinatario').value = '';
+  document.getElementById('telefoneDestinatario').value = '';
+  document.getElementById('observacoes').value = '';
+  
+  document.getElementById('areaPagamento').classList.add('oculto');
+  document.getElementById('formNovoPedido').classList.remove('oculto');
+  
+  alert('✅ Pedido enviado! Aguardando confirmação do pagamento pelo administrador. Assim que confirmado, aparecerá para os motoboys.');
+  
+  listarMeusPedidos();
+}
+
+function listarMeusPedidos() {
+  const container = document.getElementById('listaPedidos');
+  if(pedidos.length === 0) {
+    container.innerHTML = '<p style="color:#666; padding:10px;">Nenhum pedido ainda. Faça seu primeiro pedido acima! 📦</p>';
+    return;
+  }
+  
+  container.innerHTML = pedidos.map(p => {
+    let statusTexto, statusClasse;
+    switch(p.status) {
+      case 'aguardando-pagamento':
+        statusTexto = '⏳ Aguardando confirmação do Pix';
+        statusClasse = 'aguardando';
+        break;
+      case 'disponivel':
+        statusTexto = '🏍️ Disponível para motoboys';
+        statusClasse = 'aberto';
+        break;
+      case 'aceito':
+        statusTexto = '✅ Aceito por um motoboy';
+        statusClasse = 'andamento';
+        break;
+      case 'concluido':
+        statusTexto = '🚚 Entrega concluída!';
+        statusClasse = 'concluido';
+        break;
+      case 'cancelado':
+        statusTexto = '❌ Cancelado';
+        statusClasse = 'cancelado';
+        break;
+      default:
+        statusTexto = p.status;
+        statusClasse = 'aberto';
+    }
+    
+    return `
+      <div class="pedido">
+        <span class="status ${statusClasse}">${statusTexto}</span>
+        <p><strong>Para:</strong> ${p.enderecoEntrega}</p>
+        <p><strong>Recebe:</strong> ${p.nomeDestinatario}</p>
+        ${p.telefoneDestinatario ? `<p><strong>Tel:</strong> ${p.telefoneDestinatario}</p>` : ''}
+        ${p.observacoes ? `<p><strong>Obs:</strong> ${p.observacoes}</p>` : ''}
+        <p><strong>Valor:</strong> R$ 10,00</p>
+        <p style="font-size:12px; color:#888;">${p.data}</p>
+        ${p.motoboy ? `<p style="color:#16a34a; font-weight:bold;">🏍️ Motoboy: ${p.motoboy.nome || 'Identificado'}</p>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// Atualiza a lista de tempos em tempos
+setInterval(() => {
+  pedidos = JSON.parse(localStorage.getItem('pedidos')) || [];
+  listarMeusPedidos();
+}, 3000);
+
+listarMeusPedidos();
+</script>
+
+</body>
+</html>
